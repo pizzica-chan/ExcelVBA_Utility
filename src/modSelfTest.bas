@@ -34,6 +34,7 @@ Public Sub SelfTest(ByVal confirm As Boolean)
     TestRanges wb
     TestLookupTableAndCsv wb
     TestCleanFormatAudit wb
+    TestPreflight wb
     wb.Close SaveChanges:=False
     Set wb = Nothing
     CleanupTempFolder
@@ -410,6 +411,124 @@ Private Sub TestCleanFormatAudit(ByVal wb As Workbook)
     written = WriteForbiddenWords(Array("FormulaWordXYZ99"), ws.Range("AA1"), wb)
     AssertEqual ws.Range("AA1").Value, "種別", "禁止ワード結果の見出し"
 End Sub
+
+Private Sub TestPreflight(ByVal wb As Workbook)
+    Dim ws As Worksheet
+    Dim secret As Worksheet
+    Dim shp As Shape
+    Dim hits As Variant
+    Dim authorSet As Boolean
+    Dim headerSet As Boolean
+
+    Set ws = GetOrCreateSheet("pii", wb)
+    ws.Range("A1:A6").NumberFormat = "@"
+    ws.Range("A1").Value = "連絡は test@example.com まで"
+    ws.Range("A2").Value = "090-1234-5678"
+    ws.Range("A3").Value = "〒100-0001"
+    ws.Range("A4").Value = "4111111111111111"
+    ws.Range("A5").Value = "123456789018"
+    ws.Range("A6").Value = "０９０－１２３４－５６７８"
+    ws.Range("B1").Value = "2026-09-22"
+    ws.Range("B2").NumberFormat = "@"
+    ws.Range("B2").Value = "123456789010"
+    ws.Range("B3").NumberFormat = "@"
+    ws.Range("B3").Value = "4111111111111112"
+    Set shp = ws.Shapes.AddTextbox(msoTextOrientationHorizontal, 10, 10, 160, 30)
+    shp.TextFrame.Characters.Text = "shape@example.com"
+    hits = FindPersonalData(wb)
+    AssertTrue HasInspectHit(hits, "メール", "pii", "セル A1", "t***@example.com"), "メール"
+    AssertTrue HasInspectHit(hits, "電話", "pii", "セル A2", "09*-****-**78"), "電話"
+    AssertTrue HasInspectHit(hits, "郵便番号", "pii", "セル A3", "〒100-0001"), "郵便番号"
+    AssertTrue HasInspectHit(hits, "カード番号", "pii", "セル A4", "************1111"), "カード番号"
+    AssertTrue HasInspectHit(hits, "個人番号", "pii", "セル A5", "**********18"), "個人番号"
+    AssertTrue HasInspectHit(hits, "電話", "pii", "セル A6", "09*-****-**78"), "全角の電話"
+    AssertTrue HasInspectHit(hits, "メール", "pii", "図形 " & shp.Name, "s***@example.com"), "図形のメール"
+    AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B1", "*"), "日付は該当にしない"
+    AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B2", "*"), "検査数字の違う個人番号"
+    AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B3", "*"), "検査数字の違うカード番号"
+
+    Set ws = GetOrCreateSheet("inspect", wb)
+    ws.Range("A40").Value = "HiddenRowXYZ"
+    ws.Rows(40).Hidden = True
+    ws.Range("C5").Value = "WhiteXYZ"
+    ws.Range("C5").Font.Color = RGB(255, 255, 255)
+    ws.Range("C6").Value = "TinyXYZ"
+    ws.Range("C6").Font.Size = 1
+    wb.Names.Add Name:="SecretNameXYZ", RefersTo:="='" & ws.Name & "'!$A$40", Visible:=False
+    Set secret = GetOrCreateSheet("secretbox", wb)
+    secret.Range("A1").Value = "secret"
+    secret.Visible = xlSheetVeryHidden
+    hits = FindHiddenContent(wb)
+    AssertTrue HasInspectHit(hits, "非表示行", "inspect", "40", "HiddenRowXYZ"), "非表示行"
+    AssertTrue HasInspectHit(hits, "白文字", "inspect", "C5", "WhiteXYZ"), "白文字"
+    AssertTrue HasInspectHit(hits, "極小文字", "inspect", "C6", "TinyXYZ"), "極小文字"
+    AssertTrue HasInspectHit(hits, "非常に非表示", "secretbox", "*", "*"), "非常に非表示"
+    AssertTrue HasInspectHit(hits, "非表示の名前", "inspect", "SecretNameXYZ", "*"), "非表示の名前"
+    AssertTrue HasInspectHit(hits, "参照先", "inspect", "SecretNameXYZ", "非表示行を参照"), "名前の参照先"
+
+    authorSet = False
+    headerSet = False
+    On Error Resume Next
+    wb.BuiltinDocumentProperties("Author").Value = "AuthorXYZ99"
+    authorSet = (Err.Number = 0)
+    Err.Clear
+    Application.PrintCommunication = False
+    Err.Clear
+    ws.PageSetup.LeftHeader = "HeaderXYZ99"
+    headerSet = (Err.Number = 0)
+    Err.Clear
+    Application.PrintCommunication = True
+    On Error GoTo 0
+    hits = FindWorkbookProfile(wb)
+    AssertTrue HitContentHas(hits, wb.Name), "ファイル名"
+    If authorSet Then AssertTrue HitContentHas(hits, "AuthorXYZ99"), "作成者"
+    If headerSet Then AssertTrue HitContentHas(hits, "HeaderXYZ99"), "ヘッダー"
+End Sub
+
+Private Function HasInspectHit(ByVal hits As Variant, ByVal kind As String, ByVal sheetName As String, _
+    ByVal place As String, ByVal content As String) As Boolean
+
+    Dim rowIndex As Long
+    If IsEmpty(hits) Then Exit Function
+    For rowIndex = 1 To UBound(hits, 1)
+        If InspectFieldOk(kind, hits(rowIndex, 1)) And InspectFieldOk(sheetName, hits(rowIndex, 2)) _
+            And InspectFieldOk(place, hits(rowIndex, 3)) And InspectFieldOk(content, hits(rowIndex, 4)) Then
+            HasInspectHit = True
+            Exit Function
+        End If
+    Next rowIndex
+End Function
+
+Private Function InspectFieldOk(ByVal expected As String, ByVal actual As Variant) As Boolean
+    Dim actualText As String
+    If expected = "*" Then
+        InspectFieldOk = True
+        Exit Function
+    End If
+    If IsEmpty(actual) Then
+        actualText = ""
+    Else
+        actualText = CStr(actual)
+    End If
+    InspectFieldOk = (expected = actualText)
+End Function
+
+Private Function HitContentHas(ByVal hits As Variant, ByVal fragment As String) As Boolean
+    Dim rowIndex As Long
+    Dim text As String
+    If IsEmpty(hits) Then Exit Function
+    For rowIndex = 1 To UBound(hits, 1)
+        If IsEmpty(hits(rowIndex, 4)) Then
+            text = ""
+        Else
+            text = CStr(hits(rowIndex, 4))
+        End If
+        If InStr(1, text, fragment, vbTextCompare) > 0 Then
+            HitContentHas = True
+            Exit Function
+        End If
+    Next rowIndex
+End Function
 
 Private Function HasForbiddenHit(ByVal hits As Variant, ByVal kind As String, ByVal place As String, ByVal word As String) As Boolean
     Dim rowIndex As Long

@@ -68,6 +68,9 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 | `Run_WriteHolidaySheet` | 指定年の祝日一覧シートを作る |
 | `Run_WriteAuditSheets` | シート、名前、リンク、数式の点検シートを作る |
 | `Run_FindForbiddenWords` | 禁止ワードがセルやオブジェクトに含まれるか調べる |
+| `Run_FindPersonalData` | メール、電話、郵便番号、カード番号、個人番号に見える文字列を探す |
+| `Run_FindHiddenContent` | 非表示のシート・行・列、白文字、極小文字、非表示の名前を探す |
+| `Run_WriteWorkbookProfile` | 作成者、ヘッダー、外部リンク、接続を一覧する |
 
 ## モジュール
 
@@ -191,6 +194,24 @@ nextDay = AddWorkDays(DateSerial(2026, 5, 1), 1, , True)
 - `WriteForbiddenWords` … 照合結果をシートへ書く
 
 `Run_FindForbiddenWords` は、禁止ワードの範囲を選ばせてから前面のブックを調べ、結果を「禁止ワード確認」シートへ書きます。一覧に使ったセル自身は該当にしません。セルの値と数式、メモ、コメント、図形、グラフ、ハイパーリンクが対象です。
+
+### modPrivacy（個人情報）
+
+- `FindPersonalData` / `WritePersonalData`
+
+`Run_FindPersonalData` は、前面のブックからメール、電話、郵便番号、カード番号、個人番号に見える文字列を探し、「個人情報確認」シートへ書きます。電話は区切りがあるもの、郵便番号はハイフン付き、カード番号と個人番号は検査数字が合うものだけです。数値セルの連続数字は見ません。メールと番号はマスクします。
+
+### modHidden（非表示データ）
+
+- `FindHiddenContent` / `WriteHiddenContent`
+
+`Run_FindHiddenContent` は、非表示シート、値のある非表示行と列、白文字、塗りつぶしと同じ色の文字、サイズ 1 または 2 の文字、非表示の名前を「非表示確認」シートへ書きます。
+
+### modProfile（付帯情報）
+
+- `FindWorkbookProfile` / `WriteWorkbookProfile`
+
+`Run_WriteWorkbookProfile` は、作成者などのプロパティ、ヘッダーとフッター、外部リンク、接続、クエリを「付帯情報」シートへ書きます。接続文字列のパスワードは伏せます。ヘッダーの読み取りには少し時間がかかることがあります。
 
 ### modSelfTest
 
