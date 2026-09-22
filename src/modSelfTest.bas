@@ -76,10 +76,20 @@ Private Sub TestPureFunctions()
     AssertEqual PadLeft("7", 3, "0"), "007", "左埋め"
     AssertEqual Coalesce("", Empty, "x"), "x", "Coalesce"
     AssertEqual Nz(Empty, 0), 0, "Nz"
+    AssertTrue IsBlank(""), "空文字"
+    AssertTrue IsBlank(Empty), "Empty は空"
+    AssertTrue Not IsBlank(0), "0 は空ではない"
+    AssertEqual CollapseSpaces("  a" & ChrW(&H3000) & ChrW(&H3000) & "b  "), "a b", "連続空白"
+    AssertEqual ToFullWidth("A1"), "Ａ１", "全角化"
+    AssertEqual ToHiragana("アイ"), "あい", "ひらがな"
+    AssertEqual PadRight("ab", 4, "0"), "ab00", "右埋め"
     AssertEqual CountText("aaa", "aa"), 1, "文字列カウント"
     AssertEqual RegexFirst("abc123xyz", "\d+"), "123", "正規表現"
     AssertEqual RegexReplace("a1b2", "\d", "#"), "a#b#", "正規表現の置換"
+    AssertTrue RegexMatch("abc123", "\d+"), "正規表現に一致"
+    AssertTrue Not RegexMatch("abc", "\d+"), "正規表現に不一致"
     If Asc("あ") < 0 Or Asc("あ") > 255 Then AssertEqual PadLeftB("あ", 5, " "), Space$(3) & "あ", "バイト幅の左埋め"
+    If Asc("あ") < 0 Or Asc("あ") > 255 Then AssertEqual PadRightB("あ", 5, " "), "あ" & Space$(3), "バイト幅の右埋め"
 
     AssertEqual CLng(MonthStart(DateSerial(2026, 9, 22))), CLng(DateSerial(2026, 9, 1)), "月初"
     AssertEqual CLng(MonthEnd(DateSerial(2024, 2, 10))), CLng(DateSerial(2024, 2, 29)), "うるう年の月末"
@@ -91,6 +101,9 @@ Private Sub TestPureFunctions()
     AssertEqual FiscalQuarter(DateSerial(2026, 1, 15), 4), 4, "第4四半期"
     AssertEqual AgeYears(DateSerial(2000, 9, 22), DateSerial(2026, 9, 22)), 26, "誕生日当日の年齢"
     AssertEqual AgeYears(DateSerial(2000, 9, 23), DateSerial(2026, 9, 22)), 25, "誕生日前の年齢"
+    AssertEqual YearMonthKey(DateSerial(2026, 9, 22)), "2026-09", "年月キー"
+    AssertTrue IsJapaneseHoliday(DateSerial(2026, 1, 1)), "元日は祝日"
+    AssertTrue Not IsJapaneseHoliday(DateSerial(2026, 6, 1)), "平日は祝日ではない"
 
     AssertEqual JapaneseHolidayName(DateSerial(2026, 1, 1)), "元日", "元日"
     AssertEqual JapaneseHolidayName(DateSerial(2026, 1, 12)), "成人の日", "成人の日"
@@ -135,6 +148,9 @@ Private Sub TestPureFunctions()
     AssertEqual ExtensionOf("C:\a\b.xlsx"), "xlsx", "拡張子"
     AssertEqual FolderOf("C:\a\b.xlsx"), "C:\a", "親フォルダ"
     AssertEqual FolderOf("C:\a"), "C:\", "ドライブ直下の親"
+    AssertEqual FileNameOf("C:\a\b.xlsx"), "b.xlsx", "ファイル名"
+    AssertTrue Len(DocumentsFolder()) > 0, "ドキュメント"
+    AssertTrue Len(ThisFolder()) = 0 Or FolderExists(ThisFolder()), "マクロのフォルダ"
     stamp = TimestampedName("売上", "xlsx")
     AssertTrue Left$(stamp, 3) = "売上_", "タイムスタンプ名の接頭辞"
     AssertTrue InStr(stamp, Format$(Date, "yyyymmdd")) > 0, "タイムスタンプ名の日付"
@@ -205,12 +221,27 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     Set opened = OpenWorkbook(savedPath)
     AssertEqual opened.Worksheets(1).Range("A1").Value, "ping", "ブックを開く"
     AssertTrue IsWorkbookOpen(savedPath), "開いたブックを見つける"
+    AssertTrue Not FindWorkbook(savedPath) Is Nothing, "パスでブックを探す"
+    AssertTrue Not FindWorkbook("open_test.xlsx") Is Nothing, "名前でブックを探す"
+    AssertTrue SaveAllWorkbooks() >= 1, "保存済みブックを保存"
     opened.Close SaveChanges:=False
     DeleteIfExists savedPath
 
     Set extra = CopySheetToNewWorkbook(wb.Worksheets("a_sort"))
     AssertTrue extra.Worksheets.Count >= 1, "シートを新しいブックへ"
     extra.Close SaveChanges:=False
+
+    GetOrCreateSheet "old_name", wb
+    RenameSheet wb, "old_name", "new_name"
+    AssertTrue SheetExists("new_name", wb), "シート名の変更"
+    AssertTrue Not SheetExists("old_name", wb), "旧シート名は無い"
+    AssertTrue GetSheet("missing_sheet", wb) Is Nothing, "無いシート"
+    AssertEqual GetSheet("a_sort", wb).Name, "a_sort", "シートを取る"
+    AssertTrue UBound(SheetNames(wb)) >= 1, "シート名一覧"
+    wb.Activate
+    AssertTrue Len(ActiveFolder()) = 0 Or FolderExists(ActiveFolder()), "前面ブックのフォルダ"
+    RefreshWorkbook wb
+    AssertTrue IsArray(ExternalLinks(wb)), "外部リンク"
 
     ResetViewToA1 wb
     ProtectAllSheets wb, "pw"
@@ -272,6 +303,9 @@ Private Sub TestRanges(ByVal wb As Workbook)
     ShowAllData ws
     AssertTrue Not ws.FilterMode, "フィルタ解除"
     AssertEqual DataRange(ws).Address(False, False), "A1:A3", "データ範囲"
+    AssertEqual LastColumn(ws), 1, "シートの最終列"
+    AssertEqual LastColumn(ws, 1), 1, "1行目の最終列"
+    AssertEqual CurrentDataRegion(ws.Range("A1")).Address(False, False), "A1:A3", "連続領域"
 End Sub
 
 Private Sub TestLookupTableAndCsv(ByVal wb As Workbook)
@@ -281,6 +315,8 @@ Private Sub TestLookupTableAndCsv(ByVal wb As Workbook)
     Dim data As Variant
     Dim matrix As Variant
     Dim filePath As String
+    Dim csvFolder As String
+    Dim listedItems As Collection
 
     Set ws = GetOrCreateSheet("grid", wb)
     ws.Range("A1").Value = 1
@@ -295,11 +331,27 @@ Private Sub TestLookupTableAndCsv(ByVal wb As Workbook)
     AssertEqual ws.Range("E1").Value, 3, "転置 2"
     AssertEqual ws.Range("D2").Value, 2, "転置 3"
     AssertEqual ws.Range("E2").Value, 4, "転置 4"
+    AssertTrue IsAllocated(matrix), "配列がある"
+    AssertTrue Not IsAllocated(Empty), "配列ではない"
+    matrix = ColumnSlice(ToMatrix(ws.Range("A1:B2")), 2)
+    AssertEqual matrix(1, 1), 2, "列の切り出し"
+    AssertEqual matrix(2, 1), 4, "列の切り出し 2"
+    Set listedItems = New Collection
+    listedItems.Add "p"
+    listedItems.Add "q"
+    WriteCollection listedItems, ws.Range("G1"), "head"
+    AssertEqual ws.Range("G1").Value, "head", "一覧の見出し"
+    AssertEqual ws.Range("G2").Value, "p", "一覧の1件目"
+    AssertEqual ws.Range("G3").Value, "q", "一覧の2件目"
 
     ws.Range("A10").Value = "Ab"
     ws.Range("B10").Value = 10
     ws.Range("A11").Value = "k"
     ws.Range("B11").Value = 20
+    Set dict = CreateDictionary(0)
+    dict.Add "Ab", 1
+    AssertTrue DictExists(dict, "Ab"), "キーがある"
+    AssertTrue Not DictExists(dict, "ab"), "大文字小文字を区別"
     Set dict = LoadDictionary(ws.Range("A10:A11"), ws.Range("B10:B11"), 1)
     AssertEqual DictItem(dict, "ab", ""), 10, "大文字小文字を無視して引く"
     AssertEqual DictItem(dict, "missing", "no"), "no", "見つからないキー"
@@ -321,6 +373,13 @@ Private Sub TestLookupTableAndCsv(ByVal wb As Workbook)
     AssertEqual UBound(data, 1), 3, "テーブルの行数"
     AssertEqual data(3, 1), "b", "追加した行"
     AssertEqual data(3, 2), 2, "追加した数量"
+    AssertTrue HasTable("Sales", wb), "テーブルがある"
+    AssertTrue FindTable("missing_table", wb) Is Nothing, "テーブルが無い"
+    AssertEqual FindTable("Sales", wb).Name, "Sales", "テーブルを取る"
+    FilterTable table, "Name", "a"
+    AssertTrue table.AutoFilter.Filters(1).On, "テーブルの絞り込み"
+    ClearTableFilter table
+    AssertTrue Not table.AutoFilter.Filters(1).On, "テーブルの絞り込み解除"
     ClearTableRows table
     AssertEqual table.ListRows.Count, 0, "テーブルのデータを消す"
 
@@ -338,6 +397,12 @@ Private Sub TestLookupTableAndCsv(ByVal wb As Workbook)
     AssertEqual CLng(ws.Range("D2").Value), CLng(DateSerial(2026, 9, 22)), "CSVの日付"
     AssertClose CDbl(ws.Range("E2").Value), 1234.5, "CSVの数値"
     AssertEqual ws.Range("D3").Value, "line1" & vbLf & "line2", "CSVの改行"
+    filePath = CombinePath(TempTestFolder(), "sheet.csv")
+    ExportSheetCsv ws, filePath, "UTF-8"
+    AssertTrue FileExists(filePath), "シートCSV"
+    csvFolder = CombinePath(TempTestFolder(), "sheets")
+    ExportAllSheets wb, csvFolder, "UTF-8"
+    AssertTrue FileExists(CombinePath(csvFolder, ws.Name & ".csv")), "全シートCSV"
 End Sub
 
 Private Sub TestCleanFormatAudit(ByVal wb As Workbook)
@@ -372,6 +437,9 @@ Private Sub TestCleanFormatAudit(ByVal wb As Workbook)
     ws.Hyperlinks.Add Anchor:=ws.Range("D1"), Address:="https://example.com", TextToDisplay:="ex"
     RemoveHyperlinks ws.Range("D1")
     AssertEqual ws.Range("D1").Hyperlinks.Count, 0, "ハイパーリンク削除"
+    ws.Range("D1").AddComment "memo"
+    ClearNotes ws.Range("D1")
+    AssertTrue ws.Range("D1").Comment Is Nothing, "メモ削除"
 
     StyleHeaderRow ws.Range("A5:B5")
     AssertTrue ws.Range("A5").Font.Bold, "見出しを太字"
@@ -381,7 +449,25 @@ Private Sub TestCleanFormatAudit(ByVal wb As Workbook)
     ApplyGridBorders ws.Range("A5:B6")
     StripeRows ws.Range("A5:B8")
     AssertTrue ws.Range("A5:B8").FormatConditions.Count >= 1, "縞模様"
+    ClearConditionalFormats ws.Range("A5:B8")
+    AssertEqual ws.Range("A5:B8").FormatConditions.Count, 0, "条件付き書式の削除"
     AutoFitLimited ws.Range("A5:B6")
+    ws.Range("A7").Value = 0.125
+    ApplyNumberFormat ws.Range("A7"), "0.0%"
+    AssertEqual ws.Range("A7").NumberFormat, "0.0%", "表示形式"
+    ws.Range("A8").Value = 1234
+    FormatAsInteger ws.Range("A8")
+    AssertEqual ws.Range("A8").NumberFormat, "#,##0", "整数書式"
+    ws.Range("A9").Value = 1200
+    FormatAsYen ws.Range("A9")
+    AssertTrue InStr(ws.Range("A9").NumberFormat, "#,##0") > 0, "円書式"
+    FreezePanesAt ws.Range("B2")
+    FreezeTopRow ws
+    AssertTrue ActiveWindow.FreezePanes, "先頭行の固定"
+    SetZoom ws, 90
+    AssertEqual CLng(ActiveWindow.Zoom), 90, "表示倍率"
+    SetupPrintPage ws
+    AssertEqual ws.PageSetup.PaperSize, xlPaperA4, "A4"
 
     written = WriteSheetIndex(wb, ws.Range("F1"))
     AssertTrue written >= 2, "シート一覧"
@@ -411,6 +497,13 @@ Private Sub TestCleanFormatAudit(ByVal wb As Workbook)
     AssertTrue HasForbiddenHit(hits, "図形", shp.Name, "ShapeWordXYZ99"), "図形の禁止ワード"
     written = WriteForbiddenWords(Array("FormulaWordXYZ99"), ws.Range("AA1"), wb)
     AssertEqual ws.Range("AA1").Value, "種別", "禁止ワード結果の見出し"
+    Set ws = GetOrCreateSheet("holiday", wb)
+    WriteJapaneseHolidays 2026, ws.Range("A1")
+    AssertEqual CStr(ws.Range("B1").Value), "元日", "祝日一覧の書き出し"
+    written = WriteExternalLinks(wb, ws.Range("D1"))
+    AssertEqual ws.Range("D1").Value, "外部リンク", "外部リンクの見出し"
+    written = WriteHyperlinks(wb, ws.Range("D10"))
+    AssertEqual ws.Range("D10").Value, "シート", "ハイパーリンク一覧の見出し"
 End Sub
 
 Private Sub TestPreflight(ByVal wb As Workbook)
@@ -420,6 +513,7 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     Dim hits As Variant
     Dim authorSet As Boolean
     Dim headerSet As Boolean
+    Dim written As Long
 
     Set ws = GetOrCreateSheet("pii", wb)
     ws.Range("A1:A6").NumberFormat = "@"
@@ -447,6 +541,9 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B1", "*"), "日付は該当にしない"
     AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B2", "*"), "検査数字の違う個人番号"
     AssertTrue Not HasInspectHit(hits, "*", "pii", "セル B3", "*"), "検査数字の違うカード番号"
+    written = WritePersonalData(ws.Range("Z1"), wb)
+    AssertEqual ws.Range("Z1").Value, "種別", "個人情報の見出し"
+    AssertTrue written >= 2, "個人情報の行数"
 
     Set ws = GetOrCreateSheet("inspect", wb)
     ws.Range("A40").Value = "HiddenRowXYZ"
@@ -470,6 +567,9 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     AssertTrue HasInspectHit(hits, "非常に非表示", "secretbox", "*", "*"), "非常に非表示"
     AssertTrue HasInspectHit(hits, "非表示の名前", "inspect", "SecretNameXYZ", "*"), "非表示の名前"
     AssertTrue HasInspectHit(hits, "参照先", "inspect", "SecretNameXYZ", "非表示行を参照"), "名前の参照先"
+    written = WriteHiddenContent(ws.Range("Z1"), wb)
+    AssertEqual ws.Range("Z1").Value, "種別", "非表示一覧の見出し"
+    AssertTrue written >= 2, "非表示一覧の行数"
 
     authorSet = False
     headerSet = False
@@ -488,6 +588,9 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     AssertTrue HitContentHas(hits, wb.Name), "ファイル名"
     If authorSet Then AssertTrue HitContentHas(hits, "AuthorXYZ99"), "作成者"
     If headerSet Then AssertTrue HitContentHas(hits, "HeaderXYZ99"), "ヘッダー"
+    written = WriteWorkbookProfile(ws.Range("Z20"), wb)
+    AssertEqual ws.Range("Z20").Value, "区分", "付帯情報の見出し"
+    AssertTrue written >= 2, "付帯情報の行数"
 End Sub
 
 Private Function HasInspectHit(ByVal hits As Variant, ByVal kind As String, ByVal sheetName As String, _
@@ -565,6 +668,8 @@ Private Sub CleanupTempFolder()
     On Error Resume Next
     If FolderExists(nested) Then RmDir nested
     nested = CombinePath(folder, "nested")
+    If FolderExists(nested) Then RmDir nested
+    nested = CombinePath(folder, "sheets")
     If FolderExists(nested) Then RmDir nested
     RmDir folder
     On Error GoTo 0
