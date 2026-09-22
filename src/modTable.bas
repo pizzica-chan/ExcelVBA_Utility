@@ -72,9 +72,11 @@ End Function
 '   ClearTableRows FindTable("売上テーブル")
 ' 解説: 「売上テーブル」のデータ行をすべて消し、見出し行だけを残す。合計行が出ていれば先に外す。
 Public Sub ClearTableRows(ByVal table As ListObject)
-    If table.DataBodyRange Is Nothing Then Exit Sub
+    Dim rowIndex As Long
     If table.ShowTotals Then table.ShowTotals = False
-    table.Resize table.HeaderRowRange
+    For rowIndex = table.ListRows.Count To 1 Step -1
+        table.ListRows(rowIndex).Delete
+    Next rowIndex
 End Sub
 
 ' 【AppendTableRow】テーブルの末尾に 1 行足す。

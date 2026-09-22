@@ -219,7 +219,7 @@ Private Sub FindLabeledNumbers(ByVal text As String, ByVal place As String, ByVa
     For Each item In matches
         If mTruncated Then Exit Sub
         token = CStr(item.Value)
-        If Not IsBounded(text, CLng(item.FirstIndex) + 1, Len(token)) Then GoTo NextToken
+        If Not IsDigitBounded(text, CLng(item.FirstIndex) + 1, Len(token)) Then GoTo NextToken
         digits = DigitsOf(token)
         If Len(digits) >= minDigits And Len(digits) <= maxDigits Then
             AddHit kind, place, MaskDigits(token, 2, 2), token
@@ -258,10 +258,10 @@ Private Sub FindLongNumbers(ByVal text As String, ByVal place As String)
         startAt = InStr(1, CStr(item.Value), Left$(token, 1), vbBinaryCompare)
         If startAt = 0 Then startAt = 1
         startAt = CLng(item.FirstIndex) + startAt
-        If Not IsBounded(text, startAt, Len(token)) Then GoTo NextToken
+        If Not IsDigitBounded(text, startAt, Len(token)) Then GoTo NextToken
         digits = DigitsOf(token)
         If Len(digits) >= 13 And Len(digits) <= 19 Then
-            If LuhnOk(digits) Then AddHit "カード番号", place, MaskDigits(token, 0, 4), token
+            If LuhnOk(digits) And Not SameDigit(digits) Then AddHit "カード番号", place, MaskDigits(token, 0, 4), token
         ElseIf Len(digits) = 12 Then
             If MyNumberOk(digits) Then AddHit "個人番号", place, MaskDigits(token, 0, 2), token
         End If
@@ -334,18 +334,26 @@ Private Function IsPostalBounded(ByVal text As String, ByVal startAt As Long, By
     IsPostalBounded = True
 End Function
 
-Private Function IsBounded(ByVal text As String, ByVal startAt As Long, ByVal length As Long) As Boolean
+Private Function IsDigitBounded(ByVal text As String, ByVal startAt As Long, ByVal length As Long) As Boolean
     Dim ch As String
     If startAt > 1 Then
         ch = Mid$(text, startAt - 1, 1)
         If ch >= "0" And ch <= "9" Then Exit Function
-        If ch = "-" Then Exit Function
     End If
     If startAt + length <= Len(text) Then
         ch = Mid$(text, startAt + length, 1)
         If ch >= "0" And ch <= "9" Then Exit Function
     End If
-    IsBounded = True
+    IsDigitBounded = True
+End Function
+
+Private Function SameDigit(ByVal digits As String) As Boolean
+    Dim i As Long
+    If Len(digits) = 0 Then Exit Function
+    For i = 2 To Len(digits)
+        If Mid$(digits, i, 1) <> Left$(digits, 1) Then Exit Function
+    Next i
+    SameDigit = True
 End Function
 
 Private Function DigitsOf(ByVal text As String) As String

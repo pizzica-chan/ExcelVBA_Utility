@@ -33,16 +33,18 @@ Public Function LoadDictionary(ByVal keyRange As Range, ByVal valueRange As Rang
     Dim rowIndex As Long
     Dim colIndex As Long
     Dim key As Variant
+    Dim dict As Object
     If keyRange.Rows.Count <> valueRange.Rows.Count Or keyRange.Columns.Count <> valueRange.Columns.Count Then
         Err.Raise 5, "LoadDictionary", "キー範囲と値範囲の大きさが違います。"
     End If
-    Set LoadDictionary = CreateDictionary(compareMode)
+    Set dict = CreateDictionary(compareMode)
+    Set LoadDictionary = dict
     keys = ToMatrix(keyRange)
     values = ToMatrix(valueRange)
     For rowIndex = 1 To UBound(keys, 1)
         For colIndex = 1 To UBound(keys, 2)
             key = keys(rowIndex, colIndex)
-            If Not IsBlankKey(key) Then LoadDictionary(key) = values(rowIndex, colIndex)
+            If Not IsBlankKey(key) Then dict(key) = values(rowIndex, colIndex)
         Next colIndex
     Next rowIndex
 End Function

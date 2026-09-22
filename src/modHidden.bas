@@ -4,7 +4,7 @@ Option Explicit
 ' 非表示のシート、行、列、白い文字、極小の文字、非表示の名前を探す。
 ' このモジュールだけでインポートして使えます。
 ' 非表示行と非表示列は、値があるときだけ報告する。
-' 白文字は、文字色が白に近いか、塗りつぶしと同じ色のとき。
+' 白文字は、背景が無いか白いときに文字色が白に近いもの。濃い背景の白文字は対象外。
 ' 極小の文字は、サイズが 1 または 2。
 
 Private Const MaxStyleHits As Long = 2000
@@ -72,9 +72,10 @@ End Function
 
 ' 【Run_FindHiddenContent】マクロ一覧用。前面のブックを調べ、「非表示確認」シートへ書く。
 '   実行前に、そのシートのセルは空にする。
+'   内容列には非表示セルの値がそのまま入る。提出前にこのシートを削除する。
 ' 使用例:
 '   提出前のブックを前面にして実行する。
-' 解説: 隠れているシート、値のある非表示行と列、白文字、極小文字、非表示の名前を一覧にし、件数を表示する。
+' 解説: 隠れているシート、値のある非表示行と列、白文字、極小文字、非表示の名前を一覧にし、件数を表示する。確認が終わったら「非表示確認」シートを消す。
 Public Sub Run_FindHiddenContent()
     Dim wb As Workbook
     Dim report As Worksheet
@@ -103,7 +104,8 @@ Public Sub Run_FindHiddenContent()
     Else
         found = written - 1
         If report.Cells(written, 1).Value = "（省略）" Then found = found - 1
-        MsgBox CStr(found) & " 件見つかりました。結果は「非表示確認」シートにあります。", vbExclamation, "非表示確認"
+        MsgBox CStr(found) & " 件見つかりました。結果は「非表示確認」シートにあります。" & vbCrLf & _
+            "内容列には非表示セルの値がそのまま入っています。提出前にこのシートを削除してください。", vbExclamation, "非表示確認"
     End If
     Exit Sub
 EH:
@@ -184,9 +186,14 @@ Private Sub ScanFonts(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal lastCo
     Dim rowIndex As Long
     Dim colIndex As Long
     Dim cell As Range
+    Dim colHidden() As Boolean
+    ReDim colHidden(1 To lastCol)
+    For colIndex = 1 To lastCol
+        colHidden(colIndex) = ws.Columns(colIndex).Hidden
+    Next colIndex
     Set target = ws.Range(ws.Cells(1, 1), ws.Cells(lastRow, lastCol))
     If target.Cells.CountLarge = 1 Then
-        InspectFont ws, target, target.Value
+        If Not ws.Rows(1).Hidden And Not colHidden(1) Then InspectFont ws, target, target.Value
         Exit Sub
     End If
     values = target.Value
@@ -194,7 +201,7 @@ Private Sub ScanFonts(ByVal ws As Worksheet, ByVal lastRow As Long, ByVal lastCo
         If ws.Rows(rowIndex).Hidden Then GoTo NextRow
         For colIndex = 1 To lastCol
             If mTruncated Then Exit Sub
-            If ws.Columns(colIndex).Hidden Then GoTo NextCol
+            If colHidden(colIndex) Then GoTo NextCol
             If HasContent(values(rowIndex, colIndex)) Then
                 Set cell = ws.Cells(rowIndex, colIndex)
                 InspectFont ws, cell, values(rowIndex, colIndex)
@@ -211,6 +218,7 @@ Private Sub InspectFont(ByVal ws As Worksheet, ByVal cell As Range, ByVal value 
     Dim fontSize As Double
     Dim hasFont As Boolean
     Dim nearWhite As Boolean
+    Dim lightFill As Boolean
     Dim sameColor As Boolean
     Dim place As String
     If mStyleHits >= MaxStyleHits Then
@@ -228,10 +236,11 @@ Private Sub InspectFont(ByVal ws As Worksheet, ByVal cell As Range, ByVal value 
     If Not hasFont Then Exit Sub
     place = cell.Address(False, False)
     nearWhite = IsNearWhite(fontColor)
-    sameColor = (fillColor >= 0 And fontColor = fillColor And Not nearWhite)
-    If nearWhite Then
+    lightFill = (fillColor < 0 Or IsNearWhite(fillColor))
+    sameColor = (fillColor >= 0 And fontColor = fillColor)
+    If nearWhite And lightFill Then
         AddStyleHit "白文字", ws.Name, place, Snippet(ContentText(value))
-    ElseIf sameColor Then
+    ElseIf sameColor And Not nearWhite Then
         AddStyleHit "同色文字", ws.Name, place, Snippet(ContentText(value))
     End If
     If fontSize > 0 And fontSize <= 2 Then

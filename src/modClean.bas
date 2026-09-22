@@ -66,9 +66,9 @@ Public Function DeduplicateRows(ByVal target As Range, Optional ByVal header As 
     Dim cols() As Variant
     Dim i As Long
     If target Is Nothing Then Err.Raise 5, "DeduplicateRows", "範囲が空です。"
-    before = target.Rows.Count
+    before = FilledRowCount(target, header)
     If target.Columns.Count = 1 Then
-        target.RemoveDuplicates Columns:=1, Header:=header
+        target.RemoveDuplicates Columns:=Array(1), Header:=header
     Else
         ReDim cols(1 To target.Columns.Count)
         For i = 1 To target.Columns.Count
@@ -76,7 +76,40 @@ Public Function DeduplicateRows(ByVal target As Range, Optional ByVal header As 
         Next i
         target.RemoveDuplicates Columns:=(cols), Header:=header
     End If
-    DeduplicateRows = before - target.Rows.Count
+    DeduplicateRows = before - FilledRowCount(target, header)
+End Function
+
+Private Function FilledRowCount(ByVal target As Range, ByVal header As XlYesNoGuess) As Long
+    Dim values As Variant
+    Dim rowIndex As Long
+    Dim colIndex As Long
+    Dim startRow As Long
+    Dim rowFilled As Boolean
+    startRow = 1
+    If header = xlYes And target.Rows.Count > 1 Then startRow = 2
+    If target.Cells.CountLarge = 1 Then
+        If startRow = 1 And Not IsBlankCell(target.Value) Then FilledRowCount = 1
+        Exit Function
+    End If
+    values = target.Value
+    For rowIndex = startRow To UBound(values, 1)
+        rowFilled = False
+        For colIndex = 1 To UBound(values, 2)
+            If Not IsBlankCell(values(rowIndex, colIndex)) Then
+                rowFilled = True
+                Exit For
+            End If
+        Next colIndex
+        If rowFilled Then FilledRowCount = FilledRowCount + 1
+    Next rowIndex
+End Function
+
+Private Function IsBlankCell(ByVal value As Variant) As Boolean
+    If IsError(value) Or IsEmpty(value) Or IsNull(value) Then
+        IsBlankCell = True
+    ElseIf VarType(value) = vbString Then
+        IsBlankCell = (Len(value) = 0)
+    End If
 End Function
 
 ' 【RemoveHyperlinks】範囲内のハイパーリンクを外す。表示文字は残る。

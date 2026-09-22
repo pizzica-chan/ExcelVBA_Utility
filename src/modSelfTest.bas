@@ -79,7 +79,7 @@ Private Sub TestPureFunctions()
     AssertEqual CountText("aaa", "aa"), 1, "文字列カウント"
     AssertEqual RegexFirst("abc123xyz", "\d+"), "123", "正規表現"
     AssertEqual RegexReplace("a1b2", "\d", "#"), "a#b#", "正規表現の置換"
-    If LenB("あ") = 2 Then AssertEqual LenB(PadLeftB("あ", 5, " ")), 5, "バイト幅の左埋め"
+    If Asc("あ") < 0 Or Asc("あ") > 255 Then AssertEqual PadLeftB("あ", 5, " "), Space$(3) & "あ", "バイト幅の左埋め"
 
     AssertEqual CLng(MonthStart(DateSerial(2026, 9, 22))), CLng(DateSerial(2026, 9, 1)), "月初"
     AssertEqual CLng(MonthEnd(DateSerial(2024, 2, 10))), CLng(DateSerial(2024, 2, 29)), "うるう年の月末"
@@ -189,6 +189,7 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     AssertEqual wb.Worksheets(4).Name, "m_sort", "シート順 4"
     AssertTrue DeleteSheet("b_sort", wb), "シート削除"
     AssertTrue Not SheetExists("b_sort", wb), "削除済み"
+    AssertEqual GetOrCreateSheet("x:y/z", wb).Name, "x_y_z", "不正なシート名を直して作る"
 
     SetVeryHidden wb.Worksheets("m_sort")
     AssertEqual wb.Worksheets("m_sort").Visible, xlSheetVeryHidden, "非常に非表示"
@@ -452,6 +453,9 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     ws.Rows(40).Hidden = True
     ws.Range("C5").Value = "WhiteXYZ"
     ws.Range("C5").Font.Color = RGB(255, 255, 255)
+    ws.Range("D5").Value = "VisibleWhiteXYZ"
+    ws.Range("D5").Font.Color = RGB(255, 255, 255)
+    ws.Range("D5").Interior.Color = RGB(0, 32, 96)
     ws.Range("C6").Value = "TinyXYZ"
     ws.Range("C6").Font.Size = 1
     wb.Names.Add Name:="SecretNameXYZ", RefersTo:="='" & ws.Name & "'!$A$40", Visible:=False
@@ -461,6 +465,7 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     hits = FindHiddenContent(wb)
     AssertTrue HasInspectHit(hits, "非表示行", "inspect", "40", "HiddenRowXYZ"), "非表示行"
     AssertTrue HasInspectHit(hits, "白文字", "inspect", "C5", "WhiteXYZ"), "白文字"
+    AssertTrue Not HasInspectHit(hits, "白文字", "inspect", "D5", "*"), "濃い背景の白文字"
     AssertTrue HasInspectHit(hits, "極小文字", "inspect", "C6", "TinyXYZ"), "極小文字"
     AssertTrue HasInspectHit(hits, "非常に非表示", "secretbox", "*", "*"), "非常に非表示"
     AssertTrue HasInspectHit(hits, "非表示の名前", "inspect", "SecretNameXYZ", "*"), "非表示の名前"

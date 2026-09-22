@@ -1,6 +1,6 @@
-# VBA_Lib
+# ExcelVBA_Utility
 
-Excel で繰り返し使う処理を、標準モジュールに分けて置いています。必要なファイルだけをブックへ取り込めます。参照設定は不要です。
+Excel で繰り返し使う処理を、標準モジュールに分けて置いています。ライブラリとしての名前は VBA_Lib で、取り込むと `dist\VBA_Lib.xlsm` ができます。必要なファイルだけをブックへ取り込めます。参照設定は不要です。
 
 `Run_` で始まるものだけがマクロ一覧に出ます。それ以外は、いつものマクロから関数として呼びます。
 
@@ -99,7 +99,7 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 - `ResetViewToA1` / `ShowAllSheets` / `SetVeryHidden`
 - `CopySheetToNewWorkbook`
 
-`ProtectAllSheets` は `UserInterfaceOnly` を付けます。開いている間はマクロから編集できます。ブックを開き直すとこの指定は消えるので、その後もマクロから書きたいときは `Workbook_Open` で同じ保護をかけ直してください。
+`ProtectAllSheets` は `UserInterfaceOnly` を付けます。開いている間はマクロから編集できます。ブックを開き直すとこの指定は消えるので、その後もマクロから書きたいときは `Workbook_Open` で同じ保護をかけ直してください。`Run_ProtectAllSheets` と `Run_UnprotectAllSheets` の入力欄はパスワードをそのまま表示します。画面に残したくないときは、それぞれの関数をコードから呼んでください。
 
 ### modBook（ブック）
 
@@ -205,13 +205,13 @@ nextDay = AddWorkDays(DateSerial(2026, 5, 1), 1, , True)
 
 - `FindHiddenContent` / `WriteHiddenContent`
 
-`Run_FindHiddenContent` は、非表示シート、値のある非表示行と列、白文字、塗りつぶしと同じ色の文字、サイズ 1 または 2 の文字、非表示の名前を「非表示確認」シートへ書きます。
+`Run_FindHiddenContent` は、非表示シート、値のある非表示行と列、背景が無いか白いときの白文字、塗りつぶしと同じ色の文字、サイズ 1 または 2 の文字、非表示の名前を「非表示確認」シートへ書きます。濃い背景の白文字は対象にしません。内容列には隠れていたセルの値がそのまま入るので、確認が終わったらこのシートを削除してから提出します。
 
 ### modProfile（付帯情報）
 
 - `FindWorkbookProfile` / `WriteWorkbookProfile`
 
-`Run_WriteWorkbookProfile` は、作成者などのプロパティ、ヘッダーとフッター、外部リンク、接続、クエリを「付帯情報」シートへ書きます。接続文字列のパスワードは伏せます。ヘッダーの読み取りには少し時間がかかることがあります。
+`Run_WriteWorkbookProfile` は、作成者などのプロパティ、ヘッダーとフッター、外部リンク、接続、クエリを「付帯情報」シートへ書きます。接続文字列のパスワード、トークン、API キー、Secret は伏せます。ヘッダーの読み取りには少し時間がかかることがあります。
 
 ### modSelfTest
 

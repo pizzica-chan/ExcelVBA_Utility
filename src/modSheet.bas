@@ -28,13 +28,14 @@ Public Function GetSheet(ByVal sheetName As String, Optional ByVal wb As Workboo
 End Function
 
 ' 【GetOrCreateSheet】シートを返す。無ければブックの末尾に作る。
-'   : \ / ? * [ ] はシート名に使えないので、先に SafeSheetName を通す。
+'   : \ / ? * [ ] は _ に直し、31 文字を超えるときは切ってから探す。
 ' 使用例:
 '   Set ws = GetOrCreateSheet("集計")
 '   ws.Range("A1").Value = "日付"
-' 解説: 「集計」があればそれを使い、無ければブックの末尾に新しく作ってから、A1 へ「日付」と書く。
+' 解説: 「集計」があればそれを使い、無ければブックの末尾に新しく作ってから、A1 へ「日付」と書く。使えない文字は SafeSheetName で直す。
 Public Function GetOrCreateSheet(ByVal sheetName As String, Optional ByVal wb As Workbook) As Worksheet
     If wb Is Nothing Then Set wb = ActiveWorkbook
+    sheetName = SafeSheetName(sheetName)
     If SheetExists(sheetName, wb) Then
         Set GetOrCreateSheet = wb.Worksheets(sheetName)
         Exit Function
@@ -303,9 +304,10 @@ End Sub
 
 ' 【Run_ProtectAllSheets】マクロ一覧用。パスワードを聞いて全シートを保護する。
 '   キャンセルすると何もしない。空のまま OK するとパスワードなしで保護する。
+'   入力欄は伏せ字にならない。画面に出したくないときは、コードから ProtectAllSheets を呼ぶ。
 ' 使用例:
 '   配布前に実行し、編集されたくないシートをまとめて保護する。
-' 解説: 入力欄にパスワードを入れて OK すると、全シートが保護される。空のまま OK するとパスワードなし。キャンセルすると何もしない。
+' 解説: 入力欄にパスワードを入れて OK すると、全シートが保護される。入力中の文字はそのまま見える。空のまま OK するとパスワードなし。キャンセルすると何もしない。
 Public Sub Run_ProtectAllSheets()
     Dim password As String
     password = InputBox("シート保護のパスワード（空のままでも保護できます）", "シート保護")
@@ -319,9 +321,10 @@ End Sub
 
 ' 【Run_UnprotectAllSheets】マクロ一覧用。パスワードを聞いて全シートの保護を解除する。
 '   パスワードが違うシートがあると、そこでメッセージを出して止まる。
+'   入力欄は伏せ字にならない。画面に出したくないときは、コードから UnprotectAllSheets を呼ぶ。
 ' 使用例:
 '   保護をまとめて外してからデータを直す。設定が無ければ空のまま OK。
-' 解説: 保護したときと同じパスワードを入れると、全シートの保護が外れる。違うパスワードのシートがあると、そこでメッセージが出て止まる。
+' 解説: 保護したときと同じパスワードを入れると、全シートの保護が外れる。入力中の文字はそのまま見える。違うパスワードのシートがあると、そこでメッセージが出て止まる。
 Public Sub Run_UnprotectAllSheets()
     Dim password As String
     password = InputBox("シート保護のパスワード（設定していなければ空のまま OK）", "保護解除")

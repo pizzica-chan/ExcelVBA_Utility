@@ -301,14 +301,16 @@ Private Function HolidayDict(ByVal holidays As Range) As Object
     Dim cell As Range
     Dim value As Variant
     Dim day As Date
-    Set HolidayDict = CreateObject("Scripting.Dictionary")
+    Dim result As Object
+    Set result = CreateObject("Scripting.Dictionary")
+    Set HolidayDict = result
     If holidays Is Nothing Then Exit Function
     For Each cell In holidays.Cells
         value = cell.Value
         If Not IsEmpty(value) And Not IsError(value) Then
             If IsDate(value) Then
                 day = DateOnly(CDate(value))
-                HolidayDict(CLng(day)) = True
+                result(CLng(day)) = True
             End If
         End If
     Next cell
@@ -330,9 +332,9 @@ Private Function HolidayMap(ByVal yearNum As Long) As Object
     End If
     Set map = CreateObject("Scripting.Dictionary")
     AddBaseHolidays map, yearNum
-    ApplySubstituteHolidays map, yearNum
+    ApplySubstituteHolidays map, yearNum, False
     ApplyCitizensHolidays map, yearNum
-    ApplySubstituteHolidays map, yearNum
+    ApplySubstituteHolidays map, yearNum, True
     cache.Add yearNum, map
     Set HolidayMap = map
 End Function
@@ -366,31 +368,32 @@ Private Sub AddBaseHolidays(ByVal map As Object, ByVal yearNum As Long)
     AddHoliday map, DateSerial(yearNum, 11, 23), "勤労感謝の日"
 End Sub
 
-Private Sub ApplySubstituteHolidays(ByVal map As Object, ByVal yearNum As Long)
+Private Sub ApplySubstituteHolidays(ByVal map As Object, ByVal yearNum As Long, ByVal citizensOnly As Boolean)
     Dim day As Date
     Dim cursor As Date
-    Dim added As Boolean
-    Dim guard As Long
-    Do
-        added = False
-        guard = guard + 1
-        For day = DateSerial(yearNum, 1, 1) To DateSerial(yearNum, 12, 31)
-            If map.Exists(CLng(day)) Then
+    Dim holidayName As String
+    Dim eligible As Boolean
+    For day = DateSerial(yearNum, 1, 1) To DateSerial(yearNum, 12, 31)
+        If map.Exists(CLng(day)) Then
+            holidayName = CStr(map(CLng(day)))
+            If citizensOnly Then
+                eligible = (holidayName = "国民の休日")
+            Else
+                eligible = (holidayName <> "振替休日" And holidayName <> "国民の休日")
+            End If
+            If eligible Then
                 If Weekday(day, vbSunday) = vbSunday Then
                     cursor = day + 1
                     Do While map.Exists(CLng(cursor))
                         cursor = cursor + 1
                     Loop
                     If Year(cursor) = yearNum Then
-                        If Not map.Exists(CLng(cursor)) Then
-                            map.Add CLng(cursor), "振替休日"
-                            added = True
-                        End If
+                        If Not map.Exists(CLng(cursor)) Then map.Add CLng(cursor), "振替休日"
                     End If
                 End If
             End If
-        Next day
-    Loop While added And guard < 8
+        End If
+    Next day
 End Sub
 
 Private Sub ApplyCitizensHolidays(ByVal map As Object, ByVal yearNum As Long)
@@ -425,6 +428,6 @@ Private Function EquinoxDay(ByVal yearNum As Long, ByVal baseDay As Double) As L
     EquinoxDay = CLng(Int(baseDay + 0.242194 * delta) - (delta \ 4))
 End Function
 
-Private Function DateOnly(ByVal day As Date) As Date
-    DateOnly = DateSerial(Year(day), Month(day), Day(day))
+Private Function DateOnly(ByVal value As Date) As Date
+    DateOnly = DateSerial(Year(value), Month(value), Day(value))
 End Function

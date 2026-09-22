@@ -4,7 +4,7 @@ Option Explicit
 ' ドキュメントプロパティ、ヘッダーとフッター、外部リンク、接続、クエリを一覧する。
 ' このモジュールだけでインポートして使えます。
 ' ヘッダーの読み取りはプリンタと通信しないよう、印刷通信を止めてから行う。
-' 接続文字列の Password や Pwd は *** に置き換える。
+' 接続文字列の Password、Pwd、Token、ApiKey、Secret などは *** に置き換える。
 
 Private mHits As Collection
 Private mPrintChanged As Boolean
@@ -154,9 +154,22 @@ Private Sub ReadSetup(ByVal sheetObject As Object, ByVal sheetName As String)
     ReadSetupMember sheetObject, sheetName, "フッター", "左", "LeftFooter"
     ReadSetupMember sheetObject, sheetName, "フッター", "中央", "CenterFooter"
     ReadSetupMember sheetObject, sheetName, "フッター", "右", "RightFooter"
-    ReadSpecialSetup sheetObject, sheetName, "FirstPage", "先頭ページ"
-    ReadSpecialSetup sheetObject, sheetName, "EvenPage", "偶数ページ"
+    If SetupFlag(sheetObject, "DifferentFirstPageHeaderFooter") Then
+        ReadSpecialSetup sheetObject, sheetName, "FirstPage", "先頭ページ"
+    End If
+    If SetupFlag(sheetObject, "OddAndEvenPagesHeaderFooter") Then
+        ReadSpecialSetup sheetObject, sheetName, "EvenPage", "偶数ページ"
+    End If
 End Sub
+
+Private Function SetupFlag(ByVal sheetObject As Object, ByVal memberName As String) As Boolean
+    Dim flag As Variant
+    On Error Resume Next
+    flag = CallByName(sheetObject.PageSetup, memberName, VbGet)
+    If Err.Number = 0 Then SetupFlag = CBool(flag)
+    Err.Clear
+    On Error GoTo 0
+End Function
 
 Private Sub ReadSpecialSetup(ByVal sheetObject As Object, ByVal sheetName As String, ByVal pageName As String, ByVal prefix As String)
     Dim pageObject As Object
@@ -278,7 +291,7 @@ Private Function RedactSecrets(ByVal text As String) As String
     Set re = CreateObject("VBScript.RegExp")
     re.Global = True
     re.IgnoreCase = True
-    re.Pattern = "(Password|Pwd|User ID|UID|AccountKey|SharedAccessSignature|sig)\s*=\s*[^;""&\s]*"
+    re.Pattern = "(Password|Pwd|User ID|UID|AccountKey|SharedAccessSignature|Api-Key|ApiKey|Token|Secret|sig)\s*=\s*(?:""[^""]*""|'[^']*'|[^;""&\s]*)"
     RedactSecrets = re.Replace(text, "$1=***")
 End Function
 

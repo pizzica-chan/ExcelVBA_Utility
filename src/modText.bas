@@ -155,13 +155,14 @@ End Function
 
 ' 【PadLeftB】Shift_JIS 換算のバイト幅まで、半角 1 文字で左を埋める。固定長出力向け。
 '   日本語 Windows では「あ」は 2 バイト。詰める文字は半角 1 文字にする。
+'   幅は LenB ではなく、システムの ANSI（日本語 Windows では Shift_JIS）で数える。
 ' 使用例:
 '   line = PadRightB(name, 20) & PadLeftB(amount, 10)
 ' 解説: 名前を右に空白で埋めて 20 バイト、金額を左に空白で埋めて 10 バイトにし、1 行の固定長データとしてつなぐ。
 Public Function PadLeftB(ByVal text As String, ByVal byteWidth As Long, Optional ByVal padChar As String = " ") As String
     Dim pad As String
     pad = SingleBytePad(padChar)
-    Do While LenB(text) < byteWidth
+    Do While ByteLen(text) < byteWidth
         text = pad & text
     Loop
     PadLeftB = text
@@ -174,7 +175,7 @@ End Function
 Public Function PadRightB(ByVal text As String, ByVal byteWidth As Long, Optional ByVal padChar As String = " ") As String
     Dim pad As String
     pad = SingleBytePad(padChar)
-    Do While LenB(text) < byteWidth
+    Do While ByteLen(text) < byteWidth
         text = text & pad
     Loop
     PadRightB = text
@@ -267,8 +268,17 @@ Private Function PadCharacter(ByVal padChar As String) As String
 End Function
 
 Private Function SingleBytePad(ByVal padChar As String) As String
-    SingleBytePad = PadCharacter(padChar)
-    If LenB(SingleBytePad) <> 1 Then
+    Dim pad As String
+    pad = PadCharacter(padChar)
+    If ByteLen(pad) <> 1 Then
         Err.Raise 5, "modText", "詰める文字は半角 1 文字にしてください。"
     End If
+    SingleBytePad = pad
+End Function
+
+Private Function ByteLen(ByVal text As String) As Long
+    Dim bytes() As Byte
+    If Len(text) = 0 Then Exit Function
+    bytes = StrConv(text, vbFromUnicode)
+    ByteLen = UBound(bytes) - LBound(bytes) + 1
 End Function
