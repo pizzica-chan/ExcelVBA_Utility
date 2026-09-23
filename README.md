@@ -51,6 +51,7 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 | `Run_ClearFilter` | 絞り込みを解除する |
 | `Run_SortSheetNames` | シート名で並べ替える |
 | `Run_ResetViewToA1` | 表示中のシートを A1 に戻す |
+| `Run_ResetAllViewsToA1` | 非表示を含め、全シートを A1 に戻す。表示状態は戻す |
 | `Run_ShowAllSheets` | 非表示シートをすべて表示する |
 | `Run_ProtectAllSheets` | 全シートを保護する |
 | `Run_UnprotectAllSheets` | 全シートの保護を解除する |
@@ -96,8 +97,10 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 - `RenameSheet` / `SafeSheetName` / `UniqueSheetName` / `SheetNames`
 - `SortSheetsByName`
 - `ProtectAllSheets` / `UnprotectAllSheets`
-- `ResetViewToA1` / `ShowAllSheets` / `SetVeryHidden`
+- `ResetViewToA1` / `ResetAllViewsToA1` / `ShowAllSheets` / `SetVeryHidden`
 - `CopySheetToNewWorkbook`
+
+`ResetAllViewsToA1` は、非表示と非常に非表示のシートも一度表示して A1 に戻してから、元の表示状態に戻します。グラフシートは対象外です。ブックの構成が保護されていると、非表示を一時的に解除できないので失敗します。
 
 `ProtectAllSheets` は `UserInterfaceOnly` を付けます。開いている間はマクロから編集できます。ブックを開き直すとこの指定は消えるので、その後もマクロから書きたいときは `Workbook_Open` で同じ保護をかけ直してください。`Run_ProtectAllSheets` と `Run_UnprotectAllSheets` の入力欄はパスワードをそのまま表示します。画面に残したくないときは、それぞれの関数をコードから呼んでください。
 

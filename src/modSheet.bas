@@ -236,6 +236,74 @@ EH:
     Err.Raise Err.Number, "ResetViewToA1", Err.Description
 End Sub
 
+' 【ResetAllViewsToA1】非表示と「非常に非表示」を含め、全ワークシートを A1 に戻す。
+'   一度表示して選択とスクロールを戻し、終わったら元の表示状態に戻す。
+'   グラフシートは対象外。ブックの構成が保護されていると、非表示を一時解除できない。
+' 使用例:
+'   ResetAllViewsToA1 ThisWorkbook
+' 解説: このブックの全ワークシートを、選択セルもスクロールも A1 に戻す。隠れていたシートは処理のあと、隠したままになる。終わると、もともと開いていたシートに戻る。
+Public Sub ResetAllViewsToA1(ByVal wb As Workbook)
+    Dim ws As Worksheet
+    Dim returnTo As Object
+    Dim prevScreen As Boolean
+    Dim names() As String
+    Dim vis() As Long
+    Dim i As Long
+    Dim failureNumber As Long
+    Dim failureText As String
+
+    prevScreen = Application.ScreenUpdating
+    Application.ScreenUpdating = False
+    On Error GoTo EH
+    Set returnTo = ActiveSheet
+    ReDim names(1 To wb.Worksheets.Count)
+    ReDim vis(1 To wb.Worksheets.Count)
+    i = 0
+    For Each ws In wb.Worksheets
+        i = i + 1
+        names(i) = ws.Name
+        vis(i) = ws.Visible
+    Next ws
+    For i = 1 To UBound(names)
+        Set ws = wb.Worksheets(names(i))
+        If vis(i) <> xlSheetVisible Then ws.Visible = xlSheetVisible
+        ws.Activate
+        Application.Goto ws.Range("A1"), True
+        ActiveWindow.ScrollRow = 1
+        ActiveWindow.ScrollColumn = 1
+    Next i
+    RestoreSheetVisibility wb, names, vis
+    If Not returnTo Is Nothing Then
+        If returnTo.Visible = xlSheetVisible Then returnTo.Activate
+    End If
+    Application.ScreenUpdating = prevScreen
+    Exit Sub
+EH:
+    failureNumber = Err.Number
+    failureText = Err.Description
+    On Error Resume Next
+    RestoreSheetVisibility wb, names, vis
+    If Not returnTo Is Nothing Then
+        If returnTo.Visible = xlSheetVisible Then returnTo.Activate
+    End If
+    Application.ScreenUpdating = prevScreen
+    On Error GoTo 0
+    Err.Raise failureNumber, "ResetAllViewsToA1", failureText
+End Sub
+
+Private Sub RestoreSheetVisibility(ByVal wb As Workbook, ByRef names() As String, ByRef vis() As Long)
+    Dim i As Long
+    Dim upper As Long
+    upper = 0
+    On Error Resume Next
+    upper = UBound(names)
+    If Err.Number <> 0 Then Exit Sub
+    On Error GoTo 0
+    For i = 1 To upper
+        If Len(names(i)) > 0 Then wb.Worksheets(names(i)).Visible = vis(i)
+    Next i
+End Sub
+
 ' 【ShowAllSheets】非表示と「非常に非表示」を含め、すべてのシートを表示する。
 ' 使用例:
 '   ShowAllSheets ActiveWorkbook
@@ -288,6 +356,19 @@ Public Sub Run_ResetViewToA1()
     Exit Sub
 EH:
     MsgBox Err.Description, vbExclamation, "ResetViewToA1"
+End Sub
+
+' 【Run_ResetAllViewsToA1】マクロ一覧用。非表示を含め、全シートを A1 表示に戻す。
+'   処理のあと、隠していたシートは隠したままになる。
+' 使用例:
+'   納品前に、非表示シートのスクロール位置も揃えるために実行する。
+' 解説: 表示中のシートに加え、非表示と非常に非表示のシートも A1 を左上にした状態に戻る。シートの表示・非表示そのものは変わらない。
+Public Sub Run_ResetAllViewsToA1()
+    On Error GoTo EH
+    ResetAllViewsToA1 ActiveWorkbook
+    Exit Sub
+EH:
+    MsgBox Err.Description, vbExclamation, "ResetAllViewsToA1"
 End Sub
 
 ' 【Run_ShowAllSheets】マクロ一覧用。隠したシートをすべて表示する。

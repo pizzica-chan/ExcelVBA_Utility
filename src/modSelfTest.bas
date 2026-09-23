@@ -189,6 +189,7 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     Dim extra As Workbook
     Dim savedPath As String
     Dim opened As Workbook
+    Dim ws As Worksheet
 
     wb.Worksheets(1).Name = "m_sort"
     GetOrCreateSheet "c_sort", wb
@@ -244,6 +245,20 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     AssertTrue IsArray(ExternalLinks(wb)), "外部リンク"
 
     ResetViewToA1 wb
+    Set ws = GetOrCreateSheet("view_hidden", wb)
+    wb.Activate
+    ws.Activate
+    ws.Range("C20").Select
+    ActiveWindow.ScrollRow = 20
+    ActiveWindow.ScrollColumn = 3
+    SetVeryHidden ws
+    ResetAllViewsToA1 wb
+    AssertEqual ws.Visible, xlSheetVeryHidden, "表示状態を戻す"
+    ws.Visible = xlSheetVisible
+    ws.Activate
+    AssertEqual ActiveCell.Address(False, False), "A1", "非表示シートの選択"
+    AssertEqual ActiveWindow.ScrollRow, 1, "非表示シートのスクロール行"
+    AssertEqual ActiveWindow.ScrollColumn, 1, "非表示シートのスクロール列"
     ProtectAllSheets wb, "pw"
     AssertTrue wb.Worksheets("a_sort").ProtectContents, "シート保護"
     UnprotectAllSheets wb, "pw"
