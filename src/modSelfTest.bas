@@ -38,6 +38,7 @@ Public Sub SelfTest(ByVal confirm As Boolean)
     TestLookupTableAndCsv wb
     TestCleanFormatAudit wb
     TestPreflight wb
+    TestProof wb
     wb.Close SaveChanges:=False
     Set wb = Nothing
     CleanupTempFolder
@@ -645,6 +646,45 @@ Private Sub TestPreflight(ByVal wb As Workbook)
     AssertEqual ws.Range("Z20").Value, "区分", "付帯情報の見出し"
     AssertTrue written >= 2, "付帯情報の行数"
 End Sub
+
+Private Sub TestProof(ByVal wb As Workbook)
+    Dim ws As Worksheet
+    Dim hits As Variant
+    Dim written As Long
+
+    If Not WordProofAvailable() Then Exit Sub
+
+    hits = CheckJapaneseText("これは正しい文章です。")
+    AssertTrue IsEmpty(hits), "正しい文は指摘なし"
+    hits = CheckJapaneseText("食べれる人が多いです。")
+    AssertTrue Not IsEmpty(hits), "ら抜きは指摘あり"
+    AssertEqual hits(1, 1), "文法", "ら抜きは文法"
+    AssertTrue InStr(CStr(hits(1, 2)), "食べれる") > 0, "ら抜きの指摘文"
+
+    Set ws = GetOrCreateSheet("proof", wb)
+    ws.Range("A1").Value = "これは正しい文章です。"
+    ws.Range("A2").Value = "見れると思います。"
+    hits = FindJapaneseProofIssues(ws.Range("A1:A2"))
+    AssertTrue HasProofHit(hits, "文法", "proof", "A2"), "範囲の文法"
+    AssertTrue Not HasProofHit(hits, "*", "proof", "A1"), "正しいセルは該当にしない"
+    written = WriteJapaneseProofIssues(ws.Range("Z1"), ws.Range("A1:A2"))
+    AssertEqual ws.Range("Z1").Value, "種別", "文章確認の見出し"
+    AssertTrue written >= 2, "文章確認の行数"
+End Sub
+
+Private Function HasProofHit(ByVal hits As Variant, ByVal kind As String, ByVal sheetName As String, _
+    ByVal place As String) As Boolean
+
+    Dim rowIndex As Long
+    If IsEmpty(hits) Then Exit Function
+    For rowIndex = 1 To UBound(hits, 1)
+        If InspectFieldOk(kind, hits(rowIndex, 1)) And InspectFieldOk(sheetName, hits(rowIndex, 2)) _
+            And InspectFieldOk(place, hits(rowIndex, 3)) Then
+            HasProofHit = True
+            Exit Function
+        End If
+    Next rowIndex
+End Function
 
 Private Function HasInspectHit(ByVal hits As Variant, ByVal kind As String, ByVal sheetName As String, _
     ByVal place As String, ByVal content As String) As Boolean

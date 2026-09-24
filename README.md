@@ -72,6 +72,7 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 | `Run_FindPersonalData` | メール、電話、郵便番号、カード番号、個人番号に見える文字列を探す |
 | `Run_FindHiddenContent` | 非表示のシート・行・列、白文字、極小文字、非表示の名前を探す |
 | `Run_WriteWorkbookProfile` | 作成者、ヘッダー、外部リンク、接続を一覧する |
+| `Run_CheckJapaneseSelection` | 選択範囲の日本語を Word の文章校正で調べる |
 
 ## モジュール
 
@@ -216,6 +217,14 @@ nextDay = AddWorkDays(DateSerial(2026, 5, 1), 1, , True)
 
 `Run_WriteWorkbookProfile` は、作成者などのプロパティ、ヘッダーとフッター、外部リンク、接続、クエリを「付帯情報」シートへ書きます。接続文字列のパスワード、トークン、API キー、Secret は伏せます。ヘッダーの読み取りには少し時間がかかることがあります。
 
+### modProof（日本語校正）
+
+- `WordProofAvailable` … デスクトップ版 Word を起動できるか
+- `CheckJapaneseText` … 1 件の文字列を校正する
+- `FindJapaneseProofIssues` / `WriteJapaneseProofIssues` … セル範囲を調べる、結果を書く
+
+`Run_CheckJapaneseSelection` は、選択範囲の文字列定数をデスクトップ版 Word の日本語文章校正で調べ、「文章確認」シートへ書きます。外部 API は使いません。ら抜き言葉などの文法指摘と、Word が見つける誤字が対象です。対話式の「校閲 → 文章校正」より指摘は少ないことがあります。数式と数値セルは見ません。Word または日本語の校正ツールが無い環境では動きません。
+
 ### modSelfTest
 
-全モジュールを入れた状態で `SelfTest True` を実行すると、一時ブック上で上記の動作を確認します。失敗するとエラーで止まります。確認が終わると一時ブックは閉じ、開始前に開いていたシートへ戻します。
+全モジュールを入れた状態で `SelfTest True` を実行すると、一時ブック上で上記の動作を確認します。失敗するとエラーで止まります。確認が終わると一時ブックは閉じ、開始前に開いていたシートへ戻します。`modProof` の自己テストは、Word が使えるときだけ実行します。
