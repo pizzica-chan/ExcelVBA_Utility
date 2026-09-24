@@ -4,11 +4,13 @@ Option Explicit
 ' 【SelfTest】全モジュールを入れた状態で動作を確認する。マクロ一覧には出ない。
 '   一時ブック上でセル操作、祝日、CSV などを試し、終わるとそのブックは閉じる。
 '   失敗するとエラーで止まる。confirm には True を渡す。
+'   終了時は、開始前に開いていたシート（グラフシート含む）へ戻す。
 ' 使用例:
 '   SelfTest True
-' 解説: イミディエイトウィンドウで実行する。一時ブック上で各機能を試し、問題があればそこでエラーになる。終わると一時ブックと作業ファイルは削除される。引数があるのでマクロ一覧には出ない。
+' 解説: イミディエイトウィンドウで実行する。一時ブック上で各機能を試し、問題があればそこでエラーになる。終わると一時ブックと作業ファイルは削除され、開始前のシートへ戻る。引数があるのでマクロ一覧には出ない。
 Public Sub SelfTest(ByVal confirm As Boolean)
     Dim wb As Workbook
+    Dim returnTo As Object
     Dim prevScreen As Boolean
     Dim prevAlerts As Boolean
     Dim prevEvents As Boolean
@@ -20,6 +22,7 @@ Public Sub SelfTest(ByVal confirm As Boolean)
     prevScreen = Application.ScreenUpdating
     prevAlerts = Application.DisplayAlerts
     prevEvents = Application.EnableEvents
+    Set returnTo = ActiveSheet
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     Application.EnableEvents = False
@@ -39,6 +42,14 @@ Public Sub SelfTest(ByVal confirm As Boolean)
     Set wb = Nothing
     CleanupTempFolder
 
+    On Error Resume Next
+    If Not returnTo Is Nothing Then
+        If returnTo.Visible = xlSheetVisible Then
+            returnTo.Parent.Activate
+            returnTo.Activate
+        End If
+    End If
+    On Error GoTo 0
     Application.ScreenUpdating = prevScreen
     Application.DisplayAlerts = prevAlerts
     Application.EnableEvents = prevEvents
@@ -49,6 +60,12 @@ EH:
     On Error Resume Next
     If Not wb Is Nothing Then wb.Close SaveChanges:=False
     CleanupTempFolder
+    If Not returnTo Is Nothing Then
+        If returnTo.Visible = xlSheetVisible Then
+            returnTo.Parent.Activate
+            returnTo.Activate
+        End If
+    End If
     Application.ScreenUpdating = prevScreen
     Application.DisplayAlerts = prevAlerts
     Application.EnableEvents = prevEvents

@@ -100,7 +100,7 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 - `ResetViewToA1` / `ResetAllViewsToA1` / `ShowAllSheets` / `SetVeryHidden`
 - `CopySheetToNewWorkbook`
 
-`ResetAllViewsToA1` は、非表示と非常に非表示のシートも一度表示して A1 に戻してから、元の表示状態に戻します。処理中はイベントを止めてから戻します。グラフシートは対象外です。ブックの構成が保護されているときは、非表示を一時的に解除できないので、開始前にエラーで終了します。
+`ResetAllViewsToA1` は、非表示と非常に非表示のシートも一度表示して A1 に戻してから、元の表示状態に戻します。処理中は `Application.EnableEvents` を一時的にオフにし、正常終了でもエラーでも開始前の値へ戻します。グラフシートは対象外です。開始時にグラフシートを開いていた場合は、処理のあとそこへ戻ります。ブックの構成が保護されているときは、非表示を一時的に解除できないので、開始前にエラーで終了します。
 
 `ProtectAllSheets` は `UserInterfaceOnly` を付けます。開いている間はマクロから編集できます。ブックを開き直すとこの指定は消えるので、その後もマクロから書きたいときは `Workbook_Open` で同じ保護をかけ直してください。`Run_ProtectAllSheets` と `Run_UnprotectAllSheets` の入力欄はパスワードをそのまま表示します。画面に残したくないときは、それぞれの関数をコードから呼んでください。
 
@@ -218,4 +218,4 @@ nextDay = AddWorkDays(DateSerial(2026, 5, 1), 1, , True)
 
 ### modSelfTest
 
-全モジュールを入れた状態で `SelfTest True` を実行すると、一時ブック上で上記の動作を確認します。失敗するとエラーで止まります。確認が終わると一時ブックは閉じます。
+全モジュールを入れた状態で `SelfTest True` を実行すると、一時ブック上で上記の動作を確認します。失敗するとエラーで止まります。確認が終わると一時ブックは閉じ、開始前に開いていたシートへ戻します。

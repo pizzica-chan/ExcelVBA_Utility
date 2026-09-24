@@ -207,12 +207,13 @@ Public Sub UnprotectAllSheets(ByVal wb As Workbook, Optional ByVal password As S
 End Sub
 
 ' 【ResetViewToA1】表示中のシートを A1 に戻し、スクロールも左上にする。
+'   グラフシートは対象外だが、開始時にグラフシートを開いていた場合はそこへ戻る。
 ' 使用例:
 '   ResetViewToA1 ThisWorkbook
-' 解説: このブックの表示中シートを、選択セルもスクロールも A1 に戻す。非表示シートは触らない。終わると、もともと開いていたシートに戻る。
+' 解説: このブックの表示中シートを、選択セルもスクロールも A1 に戻す。非表示シートは触らない。終わると、もともと開いていたシート（グラフシート含む）に戻る。
 Public Sub ResetViewToA1(ByVal wb As Workbook)
     Dim ws As Worksheet
-    Dim returnTo As Worksheet
+    Dim returnTo As Object
     Dim prevScreen As Boolean
     prevScreen = Application.ScreenUpdating
     Application.ScreenUpdating = False
@@ -238,11 +239,11 @@ End Sub
 
 ' 【ResetAllViewsToA1】非表示と「非常に非表示」を含め、全ワークシートを A1 に戻す。
 '   一度表示して選択とスクロールを戻し、終わったら元の表示状態に戻す。
-'   処理中はイベントを止めてから戻す。グラフシートは対象外。
+'   処理中はイベントを止めてから戻す。グラフシートは対象外だが、開始時にグラフシートを開いていた場合はそこへ戻る。
 '   ブックの構成が保護されているときは、開始前にエラーで終了する。
 ' 使用例:
 '   ResetAllViewsToA1 ThisWorkbook
-' 解説: このブックの全ワークシートを、選択セルもスクロールも A1 に戻す。隠れていたシートは処理のあと、隠したままになる。終わると、もともと開いていたシートに戻る。構成が保護されているときは、何も変えずにエラーで終わる。
+' 解説: このブックの全ワークシートを、選択セルもスクロールも A1 に戻す。隠れていたシートは処理のあと、隠したままになる。終わると、もともと開いていたシート（グラフシート含む）に戻る。構成が保護されているときは、何も変えずにエラーで終わる。
 Public Sub ResetAllViewsToA1(ByVal wb As Workbook)
     Dim ws As Worksheet
     Dim returnTo As Object
@@ -281,7 +282,9 @@ Public Sub ResetAllViewsToA1(ByVal wb As Workbook)
         ActiveWindow.ScrollRow = 1
         ActiveWindow.ScrollColumn = 1
     Next i
+    On Error Resume Next
     RestoreSheetVisibility wb, names, vis
+    On Error GoTo EH
     If Not returnTo Is Nothing Then
         If returnTo.Visible = xlSheetVisible Then returnTo.Activate
     End If
@@ -308,11 +311,14 @@ Private Sub RestoreSheetVisibility(ByVal wb As Workbook, ByRef names() As String
     upper = 0
     On Error Resume Next
     upper = UBound(names)
-    If Err.Number <> 0 Then Exit Sub
-    On Error GoTo 0
+    If Err.Number <> 0 Then
+        On Error GoTo 0
+        Exit Sub
+    End If
     For i = 1 To upper
         If Len(names(i)) > 0 Then wb.Worksheets(names(i)).Visible = vis(i)
     Next i
+    On Error GoTo 0
 End Sub
 
 ' 【ShowAllSheets】非表示と「非常に非表示」を含め、すべてのシートを表示する。
