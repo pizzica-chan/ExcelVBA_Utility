@@ -238,22 +238,31 @@ End Sub
 
 ' 【ResetAllViewsToA1】非表示と「非常に非表示」を含め、全ワークシートを A1 に戻す。
 '   一度表示して選択とスクロールを戻し、終わったら元の表示状態に戻す。
-'   グラフシートは対象外。ブックの構成が保護されていると、非表示を一時解除できない。
+'   処理中はイベントを止めてから戻す。グラフシートは対象外。
+'   ブックの構成が保護されているときは、開始前にエラーで終了する。
 ' 使用例:
 '   ResetAllViewsToA1 ThisWorkbook
-' 解説: このブックの全ワークシートを、選択セルもスクロールも A1 に戻す。隠れていたシートは処理のあと、隠したままになる。終わると、もともと開いていたシートに戻る。
+' 解説: このブックの全ワークシートを、選択セルもスクロールも A1 に戻す。隠れていたシートは処理のあと、隠したままになる。終わると、もともと開いていたシートに戻る。構成が保護されているときは、何も変えずにエラーで終わる。
 Public Sub ResetAllViewsToA1(ByVal wb As Workbook)
     Dim ws As Worksheet
     Dim returnTo As Object
     Dim prevScreen As Boolean
+    Dim prevEvents As Boolean
     Dim names() As String
     Dim vis() As Long
     Dim i As Long
     Dim failureNumber As Long
     Dim failureText As String
 
+    If wb.ProtectStructure Then
+        Err.Raise 5, "ResetAllViewsToA1", _
+            "ブックの構成が保護されています。非表示シートを一時的に表示できないため、処理を中止しました。構成の保護を解除してから実行してください。"
+    End If
+
     prevScreen = Application.ScreenUpdating
+    prevEvents = Application.EnableEvents
     Application.ScreenUpdating = False
+    Application.EnableEvents = False
     On Error GoTo EH
     Set returnTo = ActiveSheet
     ReDim names(1 To wb.Worksheets.Count)
@@ -276,6 +285,7 @@ Public Sub ResetAllViewsToA1(ByVal wb As Workbook)
     If Not returnTo Is Nothing Then
         If returnTo.Visible = xlSheetVisible Then returnTo.Activate
     End If
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = prevScreen
     Exit Sub
 EH:
@@ -286,6 +296,7 @@ EH:
     If Not returnTo Is Nothing Then
         If returnTo.Visible = xlSheetVisible Then returnTo.Activate
     End If
+    Application.EnableEvents = prevEvents
     Application.ScreenUpdating = prevScreen
     On Error GoTo 0
     Err.Raise failureNumber, "ResetAllViewsToA1", failureText

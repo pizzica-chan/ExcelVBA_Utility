@@ -190,6 +190,8 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     Dim savedPath As String
     Dim opened As Workbook
     Dim ws As Worksheet
+    Dim structureErr As Long
+    Dim structureText As String
 
     wb.Worksheets(1).Name = "m_sort"
     GetOrCreateSheet "c_sort", wb
@@ -259,6 +261,25 @@ Private Sub TestSheetsAndBooks(ByVal wb As Workbook)
     AssertEqual ActiveCell.Address(False, False), "A1", "非表示シートの選択"
     AssertEqual ActiveWindow.ScrollRow, 1, "非表示シートのスクロール行"
     AssertEqual ActiveWindow.ScrollColumn, 1, "非表示シートのスクロール列"
+    Application.EnableEvents = True
+    ResetAllViewsToA1 wb
+    AssertTrue Application.EnableEvents, "イベントを戻す"
+    Application.EnableEvents = False
+
+    ws.Visible = xlSheetHidden
+    wb.Protect Structure:=True
+    On Error Resume Next
+    Err.Clear
+    ResetAllViewsToA1 wb
+    structureErr = Err.Number
+    structureText = Err.Description
+    Err.Clear
+    On Error GoTo 0
+    wb.Unprotect
+    AssertTrue structureErr <> 0, "構成保護では中止"
+    AssertTrue InStr(structureText, "構成が保護") > 0, "構成保護のメッセージ"
+    AssertEqual ws.Visible, xlSheetHidden, "構成保護では表示を変えない"
+    ws.Visible = xlSheetVisible
     ProtectAllSheets wb, "pw"
     AssertTrue wb.Worksheets("a_sort").ProtectContents, "シート保護"
     UnprotectAllSheets wb, "pw"

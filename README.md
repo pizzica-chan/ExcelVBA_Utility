@@ -100,7 +100,7 @@ ExportRangeCsv Selection, "C:\temp\out.csv"
 - `ResetViewToA1` / `ResetAllViewsToA1` / `ShowAllSheets` / `SetVeryHidden`
 - `CopySheetToNewWorkbook`
 
-`ResetAllViewsToA1` は、非表示と非常に非表示のシートも一度表示して A1 に戻してから、元の表示状態に戻します。グラフシートは対象外です。ブックの構成が保護されていると、非表示を一時的に解除できないので失敗します。
+`ResetAllViewsToA1` は、非表示と非常に非表示のシートも一度表示して A1 に戻してから、元の表示状態に戻します。処理中はイベントを止めてから戻します。グラフシートは対象外です。ブックの構成が保護されているときは、非表示を一時的に解除できないので、開始前にエラーで終了します。
 
 `ProtectAllSheets` は `UserInterfaceOnly` を付けます。開いている間はマクロから編集できます。ブックを開き直すとこの指定は消えるので、その後もマクロから書きたいときは `Workbook_Open` で同じ保護をかけ直してください。`Run_ProtectAllSheets` と `Run_UnprotectAllSheets` の入力欄はパスワードをそのまま表示します。画面に残したくないときは、それぞれの関数をコードから呼んでください。
 
